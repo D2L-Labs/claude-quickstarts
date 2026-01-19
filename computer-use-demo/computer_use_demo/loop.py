@@ -257,8 +257,16 @@ def _response_to_params(
                     thinking_block["signature"] = getattr(block, "signature", None)
                 res.append(cast(BetaContentBlockParam, thinking_block))
         else:
-            # Handle tool use blocks normally
-            res.append(cast(BetaToolUseBlockParam, block.model_dump()))
+            # Handle tool use blocks - only include allowed fields
+            tool_use_dict = block.model_dump()
+            res.append(
+                BetaToolUseBlockParam(
+                    type="tool_use",
+                    id=tool_use_dict["id"],
+                    name=tool_use_dict["name"],
+                    input=tool_use_dict["input"],
+                )
+            )
     return res
 
 
