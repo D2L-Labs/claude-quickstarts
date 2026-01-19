@@ -1,4 +1,4 @@
-FROM docker.io/ubuntu:22.04
+FROM --platform=linux/amd64 docker.io/ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV DEBIAN_PRIORITY=high
@@ -34,13 +34,18 @@ RUN apt-get update && \
     # Network tools
     net-tools \
     netcat \
-    # PPA req
-    software-properties-common && \
+    # Firefox dependencies
+    libdbus-glib-1-2 \
+    libgtk-3-0 \
+    libx11-xcb1 \
+    libxt6 \
+    wget \
+    file \
+    dbus-x11 \
+    libpci3 && \
     # Userland apps
-    sudo add-apt-repository ppa:mozillateam/ppa && \
-    sudo apt-get install -y --no-install-recommends \
+    apt-get install -y --no-install-recommends \
     libreoffice \
-    firefox-esr \
     x11-apps \
     xpdf \
     gedit \
@@ -51,6 +56,13 @@ RUN apt-get update && \
     unzip && \
     apt-get clean
 
+# Install Firefox ESR from Mozilla
+RUN wget -O /tmp/firefox.tar.bz2 "https://download.mozilla.org/?product=firefox-esr-latest&os=linux64&lang=en-US" && \
+    file /tmp/firefox.tar.bz2 && \
+    tar -xf /tmp/firefox.tar.bz2 -C /opt/ && \
+    ln -s /opt/firefox/firefox /usr/local/bin/firefox && \
+    rm /tmp/firefox.tar.bz2
+
 # Install noVNC
 RUN git clone --branch v1.5.0 https://github.com/novnc/noVNC.git /opt/noVNC && \
     git clone --branch v0.12.0 https://github.com/novnc/websockify /opt/noVNC/utils/websockify && \
@@ -59,7 +71,9 @@ RUN git clone --branch v1.5.0 https://github.com/novnc/noVNC.git /opt/noVNC && \
 # setup user
 ENV USERNAME=computeruse
 ENV HOME=/home/$USERNAME
-RUN useradd -m -s /bin/bash -d $HOME $USERNAME
+RUN useradd -m -s /bin/bash -d $HOME $USERNAME && \
+    chown -R $USERNAME:$USERNAME $HOME && \
+    chmod -R 755 $HOME
 RUN echo "${USERNAME} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 USER computeruse
 WORKDIR $HOME
@@ -92,13 +106,14 @@ RUN python -m pip install -r $HOME/computer_use_demo/requirements.txt
 
 # setup desktop env & app
 COPY --chown=$USERNAME:$USERNAME image/ $HOME
-COPY --chown=$USERNAME:$USERNAME computer_use_demo/ $HOME/computer_use_demo/
 
 ARG DISPLAY_NUM=1
 ARG HEIGHT=768
 ARG WIDTH=1024
+ARG MODEL=""
 ENV DISPLAY_NUM=$DISPLAY_NUM
 ENV HEIGHT=$HEIGHT
 ENV WIDTH=$WIDTH
+ENV MODEL=$MODEL
 
 ENTRYPOINT [ "./entrypoint.sh" ]
